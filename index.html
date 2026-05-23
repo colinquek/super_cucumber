@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Cucumber Slicer - Zen Kitchen Slicing Game</title>
+    <meta name="description" content="Experience the ultimate satisfying cucumber slicing game. Dynamic physics, cartoon vector graphics, procedural sound effects, and pure zen chopping.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Ambient background elements for kitchen aesthetic -->
+        <div class="ambient-glow glow-green"></div>
+        <div class="ambient-glow glow-yellow"></div>
+        
+        <!-- Premium Header/Top Bar -->
+        <header class="game-header">
+            <div class="logo">
+                <span class="logo-emoji">🥒</span>
+                <div class="logo-text">
+                    <h1>Super Cucumber</h1>
+                    <span class="subtitle">Nakiri Zen Slicer</span>
+                </div>
+            </div>
+            
+            <!-- Real-time Stats HUD -->
+            <div class="hud-stats">
+                <div class="stat-card" id="stat-score-container">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score-val">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Cuts</span>
+                    <span class="stat-value" id="cuts-val">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Avg Thickness</span>
+                    <span class="stat-value" id="thickness-val">0.0 mm</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Accuracy</span>
+                    <span class="stat-value" id="accuracy-val">100%</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="game-body">
+            <!-- Left Side Control Panel (Glassmorphic) -->
+            <aside class="side-panel">
+                <div class="panel-section">
+                    <h2>Select Game Mode</h2>
+                    <div class="mode-selector">
+                        <button class="mode-btn active" id="mode-zen" data-mode="zen">
+                            <span class="btn-icon">🧘</span>
+                            <div class="btn-text">
+                                <span class="btn-title">Zen Slicer</span>
+                                <span class="btn-desc">Relaxed endless chopping</span>
+                            </div>
+                        </button>
+                        <button class="mode-btn" id="mode-rhythm" data-mode="rhythm">
+                            <span class="btn-icon">🎯</span>
+                            <div class="btn-text">
+                                <span class="btn-title">Rhythm Cut</span>
+                                <span class="btn-desc">Match the target thickness</span>
+                            </div>
+                        </button>
+                        <button class="mode-btn" id="mode-time" data-mode="time">
+                            <span class="btn-icon">⏱️</span>
+                            <div class="btn-text">
+                                <span class="btn-title">Time Attack</span>
+                                <span class="btn-desc">Chop fast! 30s challenge</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel-section" id="mode-details-panel">
+                    <h3 id="mode-title-display">Zen Mode</h3>
+                    <p id="mode-desc-display">Take your time, make beautiful slices, and enjoy the satisfying feedback. Drag the cucumber with your mouse/touch or use Arrow keys to feed it manually, or toggle Auto-Feed!</p>
+                    
+                    <!-- Dynamic Target Indicator (for Rhythm Challenge) -->
+                    <div class="target-indicator-container hidden" id="target-container">
+                        <div class="target-indicator">
+                            <span class="target-label">Target Thickness:</span>
+                            <span class="target-value" id="target-val">8.0 mm</span>
+                        </div>
+                        <div class="thickness-feedback" id="feedback-display">—</div>
+                    </div>
+
+                    <!-- Dynamic Time attack Timer -->
+                    <div class="timer-container hidden" id="timer-container">
+                        <span class="timer-label">Time Remaining</span>
+                        <span class="timer-value" id="timer-val">30s</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2>Kitchen Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="auto-feed-toggle">Auto-Feeder</label>
+                            <input type="checkbox" id="auto-feed-toggle" checked>
+                        </div>
+                        <div class="setting-item">
+                            <label for="guide-toggle">Slice Guides</label>
+                            <input type="checkbox" id="guide-toggle" checked>
+                        </div>
+                        <div class="setting-item">
+                            <label for="audio-toggle">Sound FX</label>
+                            <button class="btn-icon-only" id="audio-toggle" title="Toggle Sound">
+                                <span class="icon" id="audio-icon">🔊</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary full-width margin-top-md" id="btn-reset">Reset Workspace</button>
+                </div>
+            </aside>
+
+            <!-- Center Game Canvas Container -->
+            <section class="canvas-container">
+                <!-- Combo Multiplier Popups -->
+                <div class="combo-badge hidden" id="combo-container">
+                    <span class="combo-text">COMBO</span>
+                    <span class="combo-val" id="combo-val">x2</span>
+                </div>
+
+                <!-- Toast Notification for perfect slices -->
+                <div class="toast-notification hidden" id="toast-notif">PERFECT!</div>
+
+                <!-- Instructions Banner -->
+                <div class="canvas-instructions" id="instructions-banner">
+                    <span>💡 Move mouse to guide knife. <strong>Left-Click</strong> or press <strong>Space</strong> to chop!</span>
+                </div>
+
+                <canvas id="game-canvas"></canvas>
+            </section>
+        </main>
+
+        <!-- Dynamic Game Over Modal (for Challenge Modes) -->
+        <div class="modal-overlay hidden" id="gameover-modal">
+            <div class="modal-content glass">
+                <span class="modal-emoji">🏆</span>
+                <h2 id="modal-title">Challenge Complete!</h2>
+                <div class="modal-stats">
+                    <div class="modal-stat">
+                        <span class="modal-label">Final Score</span>
+                        <span class="modal-value" id="modal-score">0</span>
+                    </div>
+                    <div class="modal-stat">
+                        <span class="modal-label">Cuts Made</span>
+                        <span class="modal-value" id="modal-cuts">0</span>
+                    </div>
+                    <div class="modal-stat">
+                        <span class="modal-label">Perfect Chops</span>
+                        <span class="modal-value" id="modal-perfects">0</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="btn-restart">Slice Again</button>
+            </div>
+        </div>
+
+        <footer class="game-footer">
+            <p>Designed with premium HTML5 Canvas, Web Audio API & Physics. Made for pure ASMR satisfaction.</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="audio.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
