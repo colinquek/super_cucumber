@@ -9,6 +9,7 @@ class SlicerGame {
         this.ctx = this.canvas.getContext('2d');
         
         // Game settings & states
+        this.gameScale = 1.0;
         this.currentMode = 'zen'; // 'zen', 'rhythm', 'time'
         this.score = 0;
         this.totalCuts = 0;
@@ -150,15 +151,25 @@ class SlicerGame {
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
         
+        // Dynamically compute game scale based on width for mobile compatibility
+        this.gameScale = this.canvas.width < 600 ? 0.68 : 1.0;
+        
         // Re-calculate chopping board dimensions procedurally
         this.board.width = this.canvas.width * 0.85;
-        this.board.height = 120;
+        this.board.height = 120 * this.gameScale;
         this.board.x = (this.canvas.width - this.board.width) / 2;
-        this.board.y = this.canvas.height * 0.58; // Sits neatly in lower-middle
         
-        // Place knife at standard starting hover
+        // Lower board position on mobile so stats HUD doesn't overlap
+        this.board.y = this.canvas.height * (this.canvas.width < 600 ? 0.64 : 0.58);
+        
+        // Reset knife metrics to default (drawn using canvas scale)
+        this.knife.width = 70;
+        this.knife.height = 140;
+        this.knife.shadowOffset = 15;
+        
+        // Place knife at standard starting hover (accounting for scale)
         this.knife.x = this.canvas.width / 2;
-        this.knife.y = this.board.y - 120;
+        this.knife.y = this.board.y - 120 * this.gameScale;
     }
 
     /**
@@ -284,15 +295,18 @@ class SlicerGame {
         this.feedOffset = 0;
         this.isGameOver = false;
         
-        // Generate a single starting cucumber segment
-        // Fits comfortably on the board
-        const cucumberY = this.board.y + 15;
-        const cucumberRadius = 38;
+        // Generate a single starting cucumber segment scaled
+        const cucumberY = this.board.y + 15 * this.gameScale;
+        const cucumberRadius = 38 * this.gameScale;
+        
+        // Prevent starter segment from overflowing small boards
+        const startOffset = Math.min(200 * this.gameScale, this.board.width * 0.35);
+        const endOffset = Math.min(50 * this.gameScale, this.board.width * 0.15);
         
         this.segments = [
             {
-                startX: this.board.x + 200,
-                endX: this.board.x + this.board.width - 50,
+                startX: this.board.x + startOffset,
+                endX: this.board.x + this.board.width - endOffset,
                 y: cucumberY,
                 radius: cucumberRadius,
                 leftCut: false, // Rounded standard head
@@ -332,7 +346,6 @@ class SlicerGame {
             segment.endX -= amount;
         });
 
-        // Shift debris and knife marks slightly to match board friction? No, debris fly freely.
         // We accumulate total feedOffset
         this.feedOffset += amount;
 
@@ -342,17 +355,17 @@ class SlicerGame {
             if (seg.endX > rightmostX) rightmostX = seg.endX;
         });
 
-        // Spawn a brand new cucumber sliding in from the right if the current one is completely sliced or fed off!
-        const minRightThreshold = this.board.x + 200;
+        // Spawn a brand new cucumber sliding in from the right scaled
+        const minRightThreshold = this.board.x + Math.min(200 * this.gameScale, this.board.width * 0.35);
         if (rightmostX < minRightThreshold) {
-            const cucumberY = this.board.y + 15;
-            const cucumberRadius = 38;
-            const spawnX = Math.max(this.canvas.width + 100, this.board.x + this.board.width + 200);
+            const cucumberY = this.board.y + 15 * this.gameScale;
+            const cucumberRadius = 38 * this.gameScale;
+            const spawnX = Math.max(this.canvas.width + 50, this.board.x + this.board.width + 100 * this.gameScale);
             
             // Add a new cucumber
             this.segments.push({
                 startX: spawnX,
-                endX: spawnX + 450, // Standard size
+                endX: spawnX + 450 * this.gameScale, // Standard size
                 y: cucumberY,
                 radius: cucumberRadius,
                 leftCut: false,
@@ -489,7 +502,7 @@ class SlicerGame {
         // Since we anchor and feed from the right, the LEFT portion represents the sliced off piece!
         // The slice thickness is exactly the width of this left segment!
         const sliceThicknessPx = leftWidth;
-        const sliceThicknessMm = sliceThicknessPx / 4.5; // conversion factor for satisfying numbers
+        const sliceThicknessMm = sliceThicknessPx / (4.5 * this.gameScale); // scale-independent thickness math
         
         this.lastSliceThickness = sliceThicknessMm;
         this.sliceCount++;
@@ -787,8 +800,8 @@ class SlicerGame {
         this.knife.x += (this.knife.targetX - this.knife.x) * lerpFactor;
         
         // Smoothly lock knife vertical height depending on chop progress
-        const hoverY = this.board.y - 120;
-        const boardY = this.board.y + 12; // Exact board chop boundary
+        const hoverY = this.board.y - 120 * this.gameScale;
+        const boardY = this.board.y + 12 * this.gameScale; // Exact board chop boundary
         this.knife.y = hoverY + (boardY - hoverY) * this.knife.chopProgress;
         
         // Tilt knife based on speed for cute organic cartoon styling
@@ -961,11 +974,11 @@ class SlicerGame {
         if (this.currentMode !== 'rhythm' || this.segments.length === 0) return;
         
         // We find the leftmost cut face of the cucumber, which is the starting point of the next slice.
-        // The target slicing coordinate is startX + (targetThickness * 4.5)
-        const activeSegment = this.segments.find(seg => seg.endX > this.board.x + 100);
+        // The target slicing coordinate is startX + (targetThickness * 4.5 * gameScale)
+        const activeSegment = this.segments.find(seg => seg.endX > this.board.x + 100 * this.gameScale);
         if (!activeSegment) return;
         
-        const targetOffset = this.targetThickness * 4.5;
+        const targetOffset = this.targetThickness * 4.5 * this.gameScale;
         const targetX = activeSegment.startX + targetOffset;
         
         this.ctx.save();
@@ -1027,7 +1040,7 @@ class SlicerGame {
 
             // 2. Draw Cute Lighter Green Cartoon Spines (simplified bumps - cheap & cartoonish!)
             this.ctx.fillStyle = '#4ade80';
-            const bumpSpacing = 36;
+            const bumpSpacing = 36 * this.gameScale;
             const startBump = Math.ceil(seg.startX / bumpSpacing) * bumpSpacing;
             
             for (let bx = startBump; bx < seg.endX - 10; bx += bumpSpacing) {
@@ -1036,7 +1049,7 @@ class SlicerGame {
                 const by = seg.y + Math.sin(phase) * (radius * 0.4);
                 
                 this.ctx.beginPath();
-                this.ctx.arc(bx, by, 3.5, 0, Math.PI * 2);
+                this.ctx.arc(bx, by, 3.5 * this.gameScale, 0, Math.PI * 2);
                 this.ctx.fill();
             }
 
@@ -1047,7 +1060,7 @@ class SlicerGame {
                 // Round original starting tail (Tail end scar)
                 this.ctx.fillStyle = '#14532d';
                 this.ctx.beginPath();
-                this.ctx.arc(seg.startX, seg.y, 4, 0, Math.PI * 2);
+                this.ctx.arc(seg.startX, seg.y, 4 * this.gameScale, 0, Math.PI * 2);
                 this.ctx.fill();
             }
 
@@ -1058,7 +1071,7 @@ class SlicerGame {
                 // Cartoon blossom scar (yellowish star-tip at end)
                 this.ctx.fillStyle = '#f59e0b';
                 this.ctx.strokeStyle = '#d97706';
-                this.ctx.lineWidth = 2.5;
+                this.ctx.lineWidth = 2.5 * this.gameScale;
                 
                 const tipX = seg.endX;
                 const tipY = seg.y;
@@ -1066,7 +1079,7 @@ class SlicerGame {
                 this.ctx.beginPath();
                 for (let i = 0; i < 5; i++) {
                     const angle = (i * 2 * Math.PI) / 5;
-                    const rx = i % 2 === 0 ? 8 : 4;
+                    const rx = i % 2 === 0 ? 8 * this.gameScale : 4 * this.gameScale;
                     this.ctx.lineTo(tipX + Math.cos(angle) * rx, tipY + Math.sin(angle) * rx);
                 }
                 this.ctx.closePath();
@@ -1139,12 +1152,14 @@ class SlicerGame {
         
         // Find the rightmost active segment
         let rightmostSeg = this.segments[this.segments.length - 1];
-        if (rightmostSeg.endX < this.board.x + 200) return;
+        if (rightmostSeg.endX < this.board.x + 200 * this.gameScale) return;
         
-        const handX = rightmostSeg.endX - 90;
+        const handX = rightmostSeg.endX - 90 * this.gameScale;
         const handY = rightmostSeg.y;
         
         this.ctx.save();
+        this.ctx.translate(handX, handY);
+        this.ctx.scale(this.gameScale, this.gameScale);
         
         // Hand shadow
         this.ctx.shadowColor = 'rgba(0,0,0,0.2)';
@@ -1157,9 +1172,9 @@ class SlicerGame {
         this.ctx.lineWidth = 5;
         this.ctx.lineJoin = 'round';
         
-        // Glove fingers wrapper
+        // Glove fingers wrapper (relative to 0,0)
         this.ctx.beginPath();
-        this.ctx.roundRect(handX, handY - 48, 55, 96, [14, 28, 28, 14]);
+        this.ctx.roundRect(0, -48, 55, 96, [14, 28, 28, 14]);
         this.ctx.fill();
         this.ctx.stroke();
         
@@ -1167,10 +1182,10 @@ class SlicerGame {
         this.ctx.strokeStyle = 'rgba(120, 53, 15, 0.35)';
         this.ctx.lineWidth = 3.5;
         for (let i = -1; i <= 1; i++) {
-            const fy = handY + i * 22;
+            const fy = i * 22;
             this.ctx.beginPath();
-            this.ctx.moveTo(handX + 10, fy);
-            this.ctx.lineTo(handX + 45, fy);
+            this.ctx.moveTo(10, fy);
+            this.ctx.lineTo(45, fy);
             this.ctx.stroke();
         }
         
@@ -1179,7 +1194,7 @@ class SlicerGame {
         this.ctx.strokeStyle = '#78350f';
         this.ctx.lineWidth = 5;
         this.ctx.beginPath();
-        this.ctx.roundRect(handX + 45, handY - 54, 40, 108, 6);
+        this.ctx.roundRect(45, -54, 40, 108, 6);
         this.ctx.fill();
         this.ctx.stroke();
         
@@ -1279,6 +1294,9 @@ class SlicerGame {
         // Translate to blade position
         this.ctx.translate(k.x, k.y);
         this.ctx.rotate(k.angle);
+        
+        // Scale the entire knife + holding hand system in one command!
+        this.ctx.scale(this.gameScale, this.gameScale);
         
         // 1. Draw Knife Drop Shadow (offset for hover visual depth)
         const shadowScale = 1.0 - k.chopProgress * 0.4;
